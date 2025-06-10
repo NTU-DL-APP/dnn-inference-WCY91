@@ -7,9 +7,10 @@ def relu(x):
     return np.maximum(0, x)
 
 def softmax(x):
-    x = np.atleast_2d(x)  # 保證至少是 2D
+    # 防止 overflow：每列減去最大值
     e_x = np.exp(x - np.max(x, axis=1, keepdims=True))
     return e_x / np.sum(e_x, axis=1, keepdims=True)
+
 
 # === Flatten ===
 def flatten(x):

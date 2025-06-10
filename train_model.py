@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Flatten
 from utils.mnist_reader import load_mnist  # 用於 model_test.py 的推論
+import json
 
 # === 使用 TensorFlow 官方訓練集來訓練 ===
 (x_train, y_train), _ = tf.keras.datasets.fashion_mnist.load_data()
@@ -79,18 +80,29 @@ for layer in model_config["layers"]:
 np.savez("model/fashion_mnist.npz", **weights)
 
 # 修改 JSON 結構（加上 weights 欄位）以供 model_test.py 使用
-import json
-model_config = model.get_config()
-for layer in model_config["layers"]:
-    lname = layer["config"]["name"]
-    if "Dense" in layer["class_name"]:
-        layer["weights"] = [f"{lname}/kernel:0", f"{lname}/bias:0"]
-    elif "Flatten" in layer["class_name"]:
-        layer["weights"] = []
 
-model_arch = {
-    "class_name": "Sequential",
-    "config": model_config["layers"]
-}
-with open("fashion_mnist.json", "w") as f:
-    json.dump(model_arch, f)
+model_arch = []
+for layer in model.layers:
+    entry = {
+        "name": layer.name,
+        "type": layer.__class__.__name__,
+        "config": {},
+        "weights": []
+    }
+
+    # Activation 函式
+    if hasattr(layer, 'activation') and layer.activation:
+        entry["config"]["activation"] = layer.activation.__name__
+
+    # 權重名
+    if isinstance(layer, Dense):
+        entry["weights"] = [f"{layer.name}/kernel:0", f"{layer.name}/bias:0"]
+    elif isinstance(layer, Flatten):
+        entry["weights"] = []
+
+    model_arch.append(entry)
+
+# 儲存 JSON
+with open("model/fashion_mnist.json", "w") as f:
+    json.dump(model_arch, f, indent=2)
+
